@@ -105,8 +105,30 @@ export class UsersService {
 
     return currentUser;
   }
+
+  /**
+   * Logout user dan hapus session dari database
+   */
+  async logout(token: string) {
+    // 1. Cek apakah session dengan token tersebut ada di database
+    const existingSession = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.token, token))
+      .limit(1);
+
+    if (!existingSession[0]) {
+      throw new Error("Unauthorized");
+    }
+
+    // 2. Hapus data session dari tabel sessions
+    await db.delete(sessions).where(eq(sessions.token, token));
+
+    return { success: true };
+  }
 }
 
 export const usersService = new UsersService();
+
 
 
