@@ -1,9 +1,15 @@
 import { db } from "../config/db";
 import { users } from "../db/schema/users";
+import { sessions } from "../db/schema/sessions";
 import { eq } from "drizzle-orm";
 
 export interface RegisterUserInput {
   name: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginUserInput {
   email: string;
   password: string;
 }
@@ -46,6 +52,36 @@ export class UsersService {
 
     return { success: true };
   }
+
+  /**
+   * Login user dan buat sesi baru
+   */
+  async login(data: LoginUserInput) {
+    // 1. Cari user berdasarkan email
+    const user = await this.findByEmail(data.email);
+    if (!user) {
+      throw new Error("email atau password salah");
+    }
+
+    // 2. Verifikasi password dengan hash bcrypt
+    const isPasswordValid = await Bun.password.verify(data.password, user.password);
+    if (!isPasswordValid) {
+      throw new Error("email atau password salah");
+    }
+
+    // 3. Generate token UUID baru
+    const token = crypto.randomUUID();
+
+    // 4. Simpan session baru ke tabel sessions
+    await db.insert(sessions).values({
+      token,
+      userId: user.id,
+    });
+
+    // 5. Kembalikan token
+    return { token };
+  }
 }
 
 export const usersService = new UsersService();
+

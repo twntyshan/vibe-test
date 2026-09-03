@@ -30,4 +30,33 @@ export const usersRoute = new Elysia({ prefix: "/users" })
         tags: ["Users"],
       },
     }
+  )
+  .post(
+    "/login",
+    async ({ body, set }) => {
+      try {
+        const result = await usersService.login(body);
+        set.status = 200;
+        return { data: result.token };
+      } catch (error: any) {
+        if (error.message === "email atau password salah") {
+          set.status = 400;
+          return { error: "email atau password salah" };
+        }
+
+        set.status = 500;
+        return { error: "Internal Server Error" };
+      }
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: "email" }),
+        password: t.String({ minLength: 1 }),
+      }),
+      detail: {
+        summary: "User login",
+        tags: ["Users"],
+      },
+    }
   );
+
