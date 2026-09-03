@@ -81,7 +81,32 @@ export class UsersService {
     // 5. Kembalikan token
     return { token };
   }
+
+  /**
+   * Mengambil data profil user saat ini berdasarkan token session
+   */
+  async getCurrentUser(token: string) {
+    const result = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        created_at: users.createdAt,
+      })
+      .from(sessions)
+      .innerJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.token, token))
+      .limit(1);
+
+    const currentUser = result[0];
+    if (!currentUser) {
+      throw new Error("Unauthorized");
+    }
+
+    return currentUser;
+  }
 }
 
 export const usersService = new UsersService();
+
 
