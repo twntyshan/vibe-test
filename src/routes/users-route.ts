@@ -94,6 +94,43 @@ export const usersRoute = new Elysia({ prefix: "/users" })
         tags: ["Users"],
       },
     }
+  )
+  .delete(
+    "/logout",
+    async ({ headers, set }) => {
+      try {
+        const authorization = headers["authorization"] || headers.authorization;
+        if (!authorization || !authorization.startsWith("Bearer ")) {
+          set.status = 401;
+          return { error: "Unauthorized" };
+        }
+
+        const token = authorization.slice(7).trim();
+        if (!token) {
+          set.status = 401;
+          return { error: "Unauthorized" };
+        }
+
+        await usersService.logout(token);
+        set.status = 200;
+        return { data: "OK" };
+      } catch (error: any) {
+        if (error.message === "Unauthorized") {
+          set.status = 401;
+          return { error: "Unauthorized" };
+        }
+
+        set.status = 500;
+        return { error: "Internal Server Error" };
+      }
+    },
+    {
+      detail: {
+        summary: "User logout and invalidate session",
+        tags: ["Users"],
+      },
+    }
   );
+
 
 
