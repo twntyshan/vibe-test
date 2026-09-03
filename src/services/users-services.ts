@@ -2,6 +2,7 @@ import { db } from "../config/db";
 import { users } from "../db/schema/users";
 import { sessions } from "../db/schema/sessions";
 import { eq } from "drizzle-orm";
+import { BadRequestError, UnauthorizedError } from "../lib/errors";
 
 export interface RegisterUserInput {
   name: string;
@@ -34,7 +35,7 @@ export class UsersService {
     // 1. Cek apakah email sudah terdaftar
     const existingUser = await this.findByEmail(data.email);
     if (existingUser) {
-      throw new Error("Email already exist");
+      throw new BadRequestError("Email already exist");
     }
 
     // 2. Hash password menggunakan bcrypt bawaan Bun
@@ -60,13 +61,13 @@ export class UsersService {
     // 1. Cari user berdasarkan email
     const user = await this.findByEmail(data.email);
     if (!user) {
-      throw new Error("email atau password salah");
+      throw new BadRequestError("email atau password salah");
     }
 
     // 2. Verifikasi password dengan hash bcrypt
     const isPasswordValid = await Bun.password.verify(data.password, user.password);
     if (!isPasswordValid) {
-      throw new Error("email atau password salah");
+      throw new BadRequestError("email atau password salah");
     }
 
     // 3. Generate token UUID baru
@@ -100,35 +101,29 @@ export class UsersService {
 
     const currentUser = result[0];
     if (!currentUser) {
-      throw new Error("Unauthorized");
+      throw new UnauthorizedError();
     }
 
     return currentUser;
   }
 
   /**
-   * Logout user dan hapus session dari database
+   * Logout user dan hapus session dari database.
+   * Menggunakan single DELETE query dan cek rowsAffected
+   * untuk menghindari double round-trip ke database.
    */
   async logout(token: string) {
-    // 1. Cek apakah session dengan token tersebut ada di database
-    const existingSession = await db
-      .select()
-      .from(sessions)
-      .where(eq(sessions.token, token))
-      .limit(1);
+    const [result] = await db
+      .delete(sessions)
+      .where(eq(sessions.token, token));
 
-    if (!existingSession[0]) {
-      throw new Error("Unauthorized");
+    // Jika tidak ada row yang terhapus, berarti token tidak valid
+    if (result.affectedRows === 0) {
+      throw new UnauthorizedError();
     }
-
-    // 2. Hapus data session dari tabel sessions
-    await db.delete(sessions).where(eq(sessions.token, token));
 
     return { success: true };
   }
 }
 
 export const usersService = new UsersService();
-
-
-
