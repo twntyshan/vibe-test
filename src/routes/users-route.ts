@@ -58,5 +58,42 @@ export const usersRoute = new Elysia({ prefix: "/users" })
         tags: ["Users"],
       },
     }
+  )
+  .get(
+    "/login/current",
+    async ({ headers, set }) => {
+      try {
+        const authorization = headers["authorization"] || headers.authorization;
+        if (!authorization || !authorization.startsWith("Bearer ")) {
+          set.status = 401;
+          return { error: "Unauthorized" };
+        }
+
+        const token = authorization.slice(7).trim();
+        if (!token) {
+          set.status = 401;
+          return { error: "Unauthorized" };
+        }
+
+        const user = await usersService.getCurrentUser(token);
+        set.status = 200;
+        return { data: user };
+      } catch (error: any) {
+        if (error.message === "Unauthorized") {
+          set.status = 401;
+          return { error: "Unauthorized" };
+        }
+
+        set.status = 500;
+        return { error: "Internal Server Error" };
+      }
+    },
+    {
+      detail: {
+        summary: "Get current logged-in user profile",
+        tags: ["Users"],
+      },
+    }
   );
+
 
