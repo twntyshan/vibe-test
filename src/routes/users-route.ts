@@ -1,5 +1,7 @@
 import { Elysia, t } from "elysia";
 import { usersService } from "../services/users-services";
+import { extractBearerToken } from "../utils/auth";
+import { BadRequestError, UnauthorizedError } from "../lib/errors";
 
 export const usersRoute = new Elysia({ prefix: "/users" })
   .post(
@@ -10,9 +12,9 @@ export const usersRoute = new Elysia({ prefix: "/users" })
         set.status = 201;
         return { data: "Ok" };
       } catch (error: any) {
-        if (error.message === "Email already exist") {
+        if (error instanceof BadRequestError) {
           set.status = 400;
-          return { error: "Email already exist" };
+          return { error: error.message };
         }
 
         set.status = 500;
@@ -39,9 +41,9 @@ export const usersRoute = new Elysia({ prefix: "/users" })
         set.status = 200;
         return { data: result.token };
       } catch (error: any) {
-        if (error.message === "email atau password salah") {
+        if (error instanceof BadRequestError) {
           set.status = 400;
-          return { error: "email atau password salah" };
+          return { error: error.message };
         }
 
         set.status = 500;
@@ -63,23 +65,12 @@ export const usersRoute = new Elysia({ prefix: "/users" })
     "/login/current",
     async ({ headers, set }) => {
       try {
-        const authorization = headers["authorization"] || headers.authorization;
-        if (!authorization || !authorization.startsWith("Bearer ")) {
-          set.status = 401;
-          return { error: "Unauthorized" };
-        }
-
-        const token = authorization.slice(7).trim();
-        if (!token) {
-          set.status = 401;
-          return { error: "Unauthorized" };
-        }
-
+        const token = extractBearerToken(headers["authorization"]);
         const user = await usersService.getCurrentUser(token);
         set.status = 200;
         return { data: user };
       } catch (error: any) {
-        if (error.message === "Unauthorized") {
+        if (error instanceof UnauthorizedError) {
           set.status = 401;
           return { error: "Unauthorized" };
         }
@@ -99,23 +90,12 @@ export const usersRoute = new Elysia({ prefix: "/users" })
     "/logout",
     async ({ headers, set }) => {
       try {
-        const authorization = headers["authorization"] || headers.authorization;
-        if (!authorization || !authorization.startsWith("Bearer ")) {
-          set.status = 401;
-          return { error: "Unauthorized" };
-        }
-
-        const token = authorization.slice(7).trim();
-        if (!token) {
-          set.status = 401;
-          return { error: "Unauthorized" };
-        }
-
+        const token = extractBearerToken(headers["authorization"]);
         await usersService.logout(token);
         set.status = 200;
         return { data: "OK" };
       } catch (error: any) {
-        if (error.message === "Unauthorized") {
+        if (error instanceof UnauthorizedError) {
           set.status = 401;
           return { error: "Unauthorized" };
         }
@@ -131,6 +111,3 @@ export const usersRoute = new Elysia({ prefix: "/users" })
       },
     }
   );
-
-
-
